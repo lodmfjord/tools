@@ -1,6 +1,5 @@
 #!/bin/sh
 
-export ble=hehe
 display_help() {
     echo "Usage: $0 [profile_name] [--clear] [--help] [--export]"
     echo
@@ -14,7 +13,7 @@ display_help() {
     echo "  $0 myprofile --export"
     echo "  $0 --clear"
 }
-eval 'export DEFECT=hehe'
+
 clear() {
     unset AWS_ACCESS_KEY_ID
     unset AWS_SECRET_ACCESS_KEY
