@@ -1,6 +1,7 @@
 #!/bin/sh
+set -o errexit -o pipefail -o noclobber -o nounset
 display_help() {
-    echo "Usage: $0 [profile_name|--clear|--help] [--export]"
+    echo "Usage: $0 [profile_name] [--clear] [--help] [--export]"
     echo
     echo "Arguments:"
     echo "  profile_name   Name of the AWS profile to use."
@@ -26,32 +27,66 @@ clear() {
     export AWS_PROFILE
 }
 
-if [ -z "$1" ] || [ "$1" = "--help" ]; then
-    display_help
-    exit 0
+profile_list=$(aws configure list-profiles)
+profile_array=()
+for i in $profile_list; do profile_array+=($i) ; done
+
+
+CURRENT_PROFILE="${PROFILE-}"
+SHOULD_EXPORT=false
+for arg in "$@"; do
+    if [ "$arg" = "--help" ]; then
+        display_help
+        exit 0
+        elif [ "$arg" = "--clear" ]; then
+        clear
+        echo "AWS environment variables cleared."
+        exit 0
+        elif [ "$arg" = "--export" ]; then
+        SHOULD_EXPORT=true
+    else
+        PROFILE=$arg
+    fi
+done
+clear
+if [ -z "${PROFILE-}" ]; then
+    echo -e "\033[1mSelect profiles\033[0m"
+    echo "----------------"
+    select profile in "${profile_array[@]}"; do
+        if [[ -n $profile ]]; then
+            echo "You selected $profile"
+            PROFILE=$profile
+            break
+        else
+            echo "Invalid choice. Please try again."
+        fi
+    done
+    
 fi
 
-if [ "$1" = "clear" ]; then
-    echo "Clearing AWS environment variables..."
-    clear
-    echo "AWS environment variables cleared."
-    exit 0
+if [[ ! " ${profile_array[@]} " =~ " ${PROFILE-} " ]]; then
+    if [ -z "${PROFILE-}" ]; then
+        echo "No profile specified."
+    else
+        echo "Profile $PROFILE does not exist."
+    fi
+    exit 1
 fi
 
-if ! aws sts get-caller-identity --profile=$1 >/dev/null 2>&1; then
+
+if ! aws sts get-caller-identity --profile=$PROFILE >/dev/null 2>&1; then
     echo "AWS credentials are invalid or expired."
-    aws sso login --profile=$1
+    aws sso login --profile=$PROFILE
 else
     echo "Done"
 fi
 
 
-export AWS_PROFILE=$1
-echo "AWS Profile set to $1"
+export AWS_PROFILE=$PROFILE
+echo "AWS Profile set to $PROFILE"
 
-if [ "$2" = "--export" ]; then
-    #eval "$(aws configure export-credentials --profile $1 --format env)"
-    eval "$(aws configure export-credentials --profile $1 --format env)"
+if [ "$SHOULD_EXPORT" = "true" ]; then
+    eval "$(aws configure export-credentials --profile $PROFILE --format env)"
     echo "AWS environment variables exported."
     export AWS_ACCESS_KEY_ID
     export AWS_SECRET_ACCESS_KEY
