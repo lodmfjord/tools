@@ -1,0 +1,11 @@
+#!/bin/sh
+is-toolbox > /dev/null
+STATUS=$?
+PROGRAM=$1
+shift
+ARGS=$@
+if [ $STATUS == 0 ]; then
+    exec flatpak-spawn --host $PROGRAM "$ARGS"
+else
+    exec $PROGRAM "$ARGS"
+fi
