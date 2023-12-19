@@ -1,5 +1,6 @@
 #!/bin/sh
-set -o errexit -o pipefail -o noclobber -o nounset
+
+export ble=hehe
 display_help() {
     echo "Usage: $0 [profile_name] [--clear] [--help] [--export]"
     echo
@@ -13,17 +14,19 @@ display_help() {
     echo "  $0 myprofile --export"
     echo "  $0 --clear"
 }
-
+eval 'export DEFECT=hehe'
 clear() {
     unset AWS_ACCESS_KEY_ID
     unset AWS_SECRET_ACCESS_KEY
     unset AWS_SESSION_TOKEN
     unset AWS_DEFAULT_REGION
+    unset AWS_REGION
     unset AWS_PROFILE
+    export AWS_REGION
+    export AWS_DEFAULT_REGION
     export AWS_ACCESS_KEY_ID
     export AWS_SECRET_ACCESS_KEY
     export AWS_SESSION_TOKEN
-    export AWS_SECRET_KEY
     export AWS_PROFILE
 }
 
@@ -41,6 +44,7 @@ for arg in "$@"; do
         elif [ "$arg" = "--clear" ]; then
         clear
         echo "AWS environment variables cleared."
+        sh -c 'export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID; export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY; export AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN; export AWS_<_KEY=$AWS_SECRET_KEY; export AWS_PROFILE=$AWS_PROFILE; export AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION; export AWS_REGION=$AWS_REGION;  exec bash'
         exit 0
         elif [ "$arg" = "--export" ]; then
         SHOULD_EXPORT=true
@@ -91,6 +95,6 @@ if [ "$SHOULD_EXPORT" = "true" ]; then
     export AWS_ACCESS_KEY_ID
     export AWS_SECRET_ACCESS_KEY
     export AWS_SESSION_TOKEN
-    export AWS_SECRET_KEY
 fi
-
+echo $AWS_ACCESS_KEY_ID
+sh -c 'export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID; export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY; export AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN; export AWS_PROFILE=$AWS_PROFILE; export AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION; export AWS_REGION=$AWS_REGION;  exec bash'
