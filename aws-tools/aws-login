@@ -1,4 +1,7 @@
-
+set -e -o pipefail
+noop() {
+    echo ""
+}
 get_shell_name() {
     local pid=$$
     local ppid=$(ps -p "$pid" -o ppid= | xargs)
@@ -86,7 +89,6 @@ install() {
     else
         echo "Unknown shell $shell_name"
         SKIP_EARLY=true
-        exit 1
     fi
     if [ "${SKIP_EARLY-}" ]; then
         echo "Reload your shell"
@@ -135,7 +137,6 @@ if [ -z "${HAD_TO_INSTALL-}" ]; then
     for i in $profile_list; do profile_array+=($i) ; done
     
     
-    CURRENT_PROFILE="${PROFILE-}"
     SHOULD_EXPORT=false
     for arg in "$@"; do
         if [ "${SKIP_EARLY-}" ]; then
@@ -143,14 +144,19 @@ if [ -z "${HAD_TO_INSTALL-}" ]; then
         fi
         if [ "$arg" = "--help" ]; then
             display_help
-            exit 0
+            SKIP_EARLY=true
             elif [ "$arg" = "--install" ]; then
             install
             SKIP_EARLY=true
             elif [ "$arg" = "--clear" ]; then
             clear
             echo "AWS environment variables cleared."
-            sh -c 'export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID; export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY; export AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN; export AWS_<_KEY=$AWS_SECRET_KEY; export AWS_PROFILE=$AWS_PROFILE; export AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION; export AWS_REGION=$AWS_REGION;  exec bash'
+            export AWS_ACCESS_KEY_ID
+            export AWS_SECRET_ACCESS
+            export AWS_SESSION_TOKEN
+            export AWS_PROFILE
+            export AWS_DEFAULT_REGION
+            export AWS_REGION
             SKIP_EARLY=true
             elif [ "$arg" = "--export" ]; then
             SHOULD_EXPORT=true
@@ -181,28 +187,29 @@ if [ -z "${HAD_TO_INSTALL-}" ]; then
                 echo "No profile specified."
             else
                 echo "Profile $PROFILE does not exist."
+                SKIP_EARLY=true
             fi
-            exit 1
         fi
         
-        
-        if ! aws sts get-caller-identity --profile=$PROFILE >/dev/null 2>&1; then
-            echo "AWS credentials are invalid or expired."
-            aws sso login --profile=$PROFILE
-        else
-            echo "Done"
-        fi
-        
-        
-        export AWS_PROFILE=$PROFILE
-        echo "AWS Profile set to $PROFILE"
-        
-        if [ "$SHOULD_EXPORT" = "true" ]; then
-            eval "$(aws configure export-credentials --profile $PROFILE --format env)"
-            echo "AWS environment variables exported."
-            export AWS_ACCESS_KEY_ID
-            export AWS_SECRET_ACCESS_KEY
-            export AWS_SESSION_TOKEN
+        if [ -z "${SKIP_EARLY-}" ]; then
+            if ! aws sts get-caller-identity --profile=$PROFILE >/dev/null 2>&1; then
+                echo "AWS credentials are invalid or expired."
+                aws sso login --profile=$PROFILE
+            else
+                noop
+            fi
+            
+            
+            export AWS_PROFILE=$PROFILE
+            echo "AWS Profile set to $PROFILE"
+            
+            if [ "$SHOULD_EXPORT" = "true" ]; then
+                eval "$(aws configure export-credentials --profile $PROFILE --format env)"
+                echo "AWS environment variables exported."
+                export AWS_ACCESS_KEY_ID
+                export AWS_SECRET_ACCESS_KEY
+                export AWS_SESSION_TOKEN
+            fi
         fi
     fi
 fi
