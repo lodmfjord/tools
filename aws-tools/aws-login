@@ -6,7 +6,9 @@ main_aws_login() {
     local COMMAND_CLEAR=30
     local COMMAND_EXPORT=40
     local PROFILE=""
-    
+    _noop() {
+        echo ""
+    }
     _aws_login_get_get_shell_name() {
         local pid=$$
         local ppid=$(ps -p "$pid" -o ppid= | xargs)
@@ -192,9 +194,9 @@ main_aws_login() {
         case $COMMAND in
             $COMMAND_NORMAL | $COMMAND_EXPORT)
                 _aws_login_get_profiles
-                [ -z "${PROFILE-}" ] && _aws_select_profile
-                _aws_valid_profile || { echo "Invalid profile name: $PROFILE"; exit 1; }
-                _aws_need_to_login && {  echo "AWS credentials are invalid or expired."; aws sso login --profile=$PROFILE; }
+                [ -z "${PROFILE-}" ] && _aws_select_profile || _noop
+                _aws_valid_profile || { echo "Invalid profile name: $PROFILE"; return 1; }
+                _aws_need_to_login && {  echo "AWS credentials are invalid or expired."; aws sso login --profile=$PROFILE; } || _noop
                 echo "AWS Profile set to $PROFILE"
                 export AWS_PROFILE=$PROFILE
                 [ "$COMMAND" = "$COMMAND_EXPORT" ] &&  _aws_export && echo "AWS environment variables exported."
@@ -217,28 +219,4 @@ main_aws_login() {
     _aws_login_get_has_to_install && install || _aws_process "$@"
 }
 
-AWS_ERREXIT_SET=$(shopt -o | grep errexit | awk '{ print $2 }')
-AWS_PIPEFAIL_SET=$(shopt -o | grep pipefail | awk '{ print $2 }')
-aws_restore_shell_options() {
-    if [ "$AWS_ERREXIT_SET" = "off" ]; then
-        set +e
-    else
-        set -e
-    fi
-    
-    if [ "$AWS_PIPEFAIL_SET" = "off" ]; then
-        set +o pipefail
-    else
-        set -o pipefail
-    fi
-}
-
-aws_trap() {
-    echo "Error occurred in command: $BASH_COMMAND with exit status: $1" >&2
-    aws_restore_shell_options
-}
-
-trap 'aws_trap; exit 1' ERR
-set -e -o pipefail
 main_aws_login "$@"
-aws_restore_shell_options
