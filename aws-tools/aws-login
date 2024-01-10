@@ -6,9 +6,24 @@ main_aws_login() {
     local COMMAND_CLEAR=30
     local COMMAND_EXPORT=40
     local PROFILE=""
+    
     _noop() {
         echo ""
     }
+    
+    _aws_get_cluster() {
+        local profile=$1
+        local cluster_name=$(aws eks list-clusters --profile=si-nursery --query 'clusters[0]' --output text)
+        if [ "$cluster_name" == "None" ] || [ -z "$cluster_name" ]; then
+            return 1
+        fi
+        
+        # Currently only supports one cluster!
+        aws eks update-kubeconfig --name $cluster_name
+        
+        echo $cluster_name
+    }
+    
     _aws_login_get_get_shell_name() {
         local pid=$$
         local ppid=$(ps -p "$pid" -o ppid= | xargs)
@@ -198,6 +213,8 @@ main_aws_login() {
                 _aws_need_to_login && {  echo "AWS credentials are invalid or expired."; aws sso login --profile=$PROFILE; } || _noop
                 echo "AWS Profile set to $PROFILE"
                 export AWS_PROFILE=$PROFILE
+                local CLUSTER=$(_aws_get_cluster $PROFILE)
+                [ -z "${cluster-}" ] || { kubectx  $CLUSTER; }
                 [ "$COMMAND" = "$COMMAND_EXPORT" ] &&  _aws_export && echo "AWS environment variables exported."
             ;;
             $COMMAND_DISPLAY_HELP)
